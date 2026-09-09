@@ -1084,6 +1084,15 @@ public static extern void CoTaskMemFree(IntPtr pv);
         # Apply file selection logic
         if ($DownloadedFilePath) {
           Write-Host "DownloadedFilePath : `"$DownloadedFilePath`"" -ForegroundColor Yellow
+
+          try {
+            Set-Clipboard -Value $DownloadedFilePath
+            Write-Host "Copied file path to clipboard" -ForegroundColor Green
+          }
+          catch {
+            Write-Warning "Failed to copy file path to clipboard: $_"
+          }
+
           try {
             Show-InFileManager -FilePath $DownloadedFilePath
           }
