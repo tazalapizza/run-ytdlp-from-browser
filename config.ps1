@@ -41,13 +41,15 @@ New-Variable -Name DefaultAudioQuality -Value "m4a" -Option Constant
 # 3. FILE NAMING TEMPLATES
 # ---------------------------------------------------------------------------
 
-# Naming template including the channel/uploader name
-New-Variable -Name TemplateNameChannel -Value "%(uploader|)s%(uploader& - )s%(title).70s.%(ext)s" -Option Constant
+# Artist first, falling back through the creator/uploader fields when the
+# source does not provide music-specific artist metadata.
+New-Variable -Name TemplateNameChannel -Value "%(artist,artists,creator,creators,uploader,uploader_id|Unknown)s - %(title).70s.%(ext)s" -Option Constant
 
-# Naming template using only the video title
-New-Variable -Name TemplateNameTitle -Value "%(title).70s.%(ext)s" -Option Constant
+# Keep the same naming shape even when this legacy toggle is enabled.
+New-Variable -Name TemplateNameTitle -Value "%(artist,artists,creator,creators,uploader,uploader_id|Unknown)s - %(title).70s.%(ext)s" -Option Constant
 
-# Set to $true to use templateNameTitle, or $false to use templateNameChannel
+# Retained for compatibility with the script; both templates now use
+# "artist - title".
 New-Variable -Name UseTitle -Value $true -Option Constant
 
 # ---------------------------------------------------------------------------

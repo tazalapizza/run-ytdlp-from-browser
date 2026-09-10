@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         yt-dlp
 // @namespace    fred.vatin.yt-dlp.us
-// @version      2.0.0
+// @version      2.0.1
 // @description  Run local script to run yt-dlp commands
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=youtube.com
 // @author       Fred Vatin
-// @updateURL    https://raw.githubusercontent.com/Fred-Vatin/run-yt-dlp-from-browser/main/user%20script/ytdl.user.js
-// @downloadURL  https://raw.githubusercontent.com/Fred-Vatin/run-yt-dlp-from-browser/main/user%20script/ytdl.user.js
+// @updateURL    https://raw.githubusercontent.com/tazalapizza/run-ytdlp-from-browser/main/user%20script/ytdl.user.js
+// @downloadURL  https://raw.githubusercontent.com/tazalapizza/run-ytdlp-from-browser/main/user%20script/ytdl.user.js
 // @noframes
 // @include      *
 // @grant        GM_registerMenuCommand
@@ -125,8 +125,15 @@
         },
       });
     } else {
-      // This should trigger the ytdl: protocol handler if installed properly on the OS
-      window.location.href = ytdlURL;
+      // Trigger the protocol from a temporary link so this document remains
+      // alive long enough to request closing the download tab.
+      const handoffLink = document.createElement("a");
+      handoffLink.href = ytdlURL;
+      handoffLink.rel = "noreferrer";
+      handoffLink.style.display = "none";
+      document.body.appendChild(handoffLink);
+      handoffLink.click();
+      handoffLink.remove();
       console.info(`Try to open URL : ${ytdlURL}`);
       GM_notification({
         text: `Type: ${type}\nQuality: ${quality}`,
@@ -141,16 +148,12 @@
         },
       });
 
-      // Try to close this tab right after triggering the download.
-      // Note: the PowerShell download runs as a separate local process with no
-      // way to report success/failure back to the browser, so we can't wait
-      // for confirmation - we close as soon as the protocol handler is triggered.
-      // Browsers only allow scripts to close tabs they opened themselves, so on
-      // a tab you navigated to normally this will silently do nothing.
+      // The protocol handler launches PowerShell as a separate process, so the
+      // page can close after the handoff. Errors remain visible in its terminal.
       setTimeout(() => {
-        console.info("Attempting to close this tab after triggering download");
+        console.info("Closing this tab after handing off to PowerShell");
         window.close();
-      }, 300);
+      }, 1000);
     }
   }
 

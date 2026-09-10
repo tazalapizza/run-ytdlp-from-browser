@@ -242,7 +242,6 @@ function Stop-ScriptWithError {
     Write-Host "`nEXIT  " -ForegroundColor Red
   }
 
-  Read-Host -Prompt "`nPress Enter to close this window"
   exit 1
 }
 
@@ -367,9 +366,9 @@ $myCookies = ""
 
 New-Variable -Name FullDownloadDir -Value (Join-Path -Path "$DownloadsPath" -ChildPath "$DownloadFolderName") -Option Constant
 
-# This is the command triggered by the protocol
-# It open the Windows Terminal with the profile 'PowerShell 7' and this script with the given url
-New-Variable -Name command -Value "cmd.exe /c pwsh.exe -ExecutionPolicy Bypass -File ""$PSCommandPath"" -url ""%1"""
+# This is the command triggered by the protocol. The batch launcher exits on
+# success and pauses after any PowerShell error, including a parse error.
+New-Variable -Name command -Value "cmd.exe /d /c call ""$PSScriptRoot\yt-download.cmd"" ""%1"""
 
 # ⚠	NOT RECOMMENDED
 # If for some reason, you would want to change the protocol name.
@@ -414,23 +413,23 @@ function Show-Help {
   Write-Host "-Url" -ForegroundColor Magenta
   Write-Host "`tThis url is parsed and can contain those parameters:"
   Write-Host "`n`t- type [string] (required)" -ForegroundColor Cyan
-  Write-Host "`t`t`"auto`"`n`t`t`tif the url to download is detected as audio, download best audio"
+  Write-Host "`t`tauto`n`t`t`tif the url to download is detected as audio, download best audio"
   Write-Host "`t`t`tif not, download the url using best compatible video+audio"
-  Write-Host "`n`t`t`"audio`"`n`t`t`tdownload audio stream only or extract audio"
-  Write-Host "`n`t`t`"video`"`n`t`t`tdownload video stream as mp4 using `"quality`""
-  Write-Host "`n`t`t`"test`"`n`t`t`tdisplay all available formats for the url and its title"
-  Write-Host "`n`t`t`"showUI`"`n`t`t`tif YDL-UI.exe is installed and path set in this script, send url to it"
+  Write-Host "`n`t`taudio`n`t`t`tdownload audio stream only or extract audio"
+  Write-Host "`n`t`tvideo`n`t`t`tdownload video stream as mp4 using quality"
+  Write-Host "`n`t`ttest`n`t`t`tdisplay all available formats for the url and its title"
+  Write-Host "`n`t`tshowUI`n`t`t`tif YDL-UI.exe is installed and path set in this script, send url to it"
   Write-Host "`t`t`tRequires https://github.com/Maxstupo/ydl-ui/"
   Write-Host "`n`tquality [string] (optional)" -ForegroundColor Cyan
-  Write-Host "`t`t`"`"`n`t`t`tdefault is empty and download the best compatible audio and video, not always the best"
-  Write-Host "`n`t`t`"best`"`n`t`t`tif type is video try to download the best streams available, no matter what their format are"
-  Write-Host "`n`t`t`"1080`", `"720`", etc.`n`t`t`tuse any height you want. It will try to download this video quality if exist or the next one below"
-  Write-Host "`n`t`t`"forceMp3`"`n`t`t`tif type is audio, download mp3 stream if exists or convert to mp3"
-  Write-Host "`n`t`t`"best, aac, m4a, mp3, opus, vorbis, wav`"`n`t`t`tif type is audio, use the given quality in priority, else find the other best audio stream"
+  Write-Host "`t`t(default)`n`t`t`tdefault is empty and downloads the best compatible audio and video"
+  Write-Host "`n`t`tbest`n`t`t`tif type is video, download the best streams available"
+  Write-Host "`n`t`t1080, 720, etc.`n`t`t`tuse any height; it tries that quality or the next one below"
+  Write-Host "`n`t`tforceMp3`n`t`t`tif type is audio, download or convert to mp3"
+  Write-Host "`n`t`tbest, aac, m4a, mp3, opus, vorbis, wav`n`t`t`tif type is audio, use the given quality in priority"
   Write-Host "`n`t- dldir [string] (optional)" -ForegroundColor Cyan
-  Write-Host "`t`t`"directory/path`"`n`t`t`tif not set in the -url, use the one set in this script"
+  Write-Host "`t`tdirectory/path`n`t`t`tif not set in the URL, use the one set in this script"
   Write-Host "`n`t- url [string] (required)" -ForegroundColor Cyan
-  Write-Host "`t`t`"url`"`tto download"
+  Write-Host "`t`turl`tto download"
   Write-Host "`nℹ`tDefault Paths" -ForegroundColor Magenta
   Write-Host "========================`n" -ForegroundColor Magenta
   Write-Host "Edit this script to customize those paths."
@@ -971,6 +970,18 @@ public static extern void CoTaskMemFree(IntPtr pv);
   if (-not $IsTest) {
     # Important for the function Out-ColoredLog
     $options += @("--encoding", "utf-8")
+
+    # Embed predictable media tags.  meta_title/meta_artist take precedence
+    # over any automatically detected track metadata, and artist falls back to
+    # the creator/uploader when the source has no music artist field.
+    $options += @("--embed-metadata")
+    $options += @("--parse-metadata", "%(title)s:%(meta_title)s")
+    $options += @("--parse-metadata", "%(artist,artists,creator,creators,uploader,uploader_id|Unknown)s:%(meta_artist)s")
+    # Override yt-dlp's default webpage_url -> comment, upload_date -> date,
+    # and categories/genre -> genre mappings with empty values.
+    $options += @("--parse-metadata", ":(?P<meta_comment>)")
+    $options += @("--parse-metadata", ":(?P<meta_date>)")
+    $options += @("--parse-metadata", ":(?P<meta_genre>)")
 
     # If video title contains a dot as last character, delete it
     $options += @("--replace-in-metadata", "title", '\.$', "")
